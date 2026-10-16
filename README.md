@@ -121,3 +121,4 @@ swift test --package-path Packages/HatchCore
 | `swift test` on Mac | ⏳ Pending — run on Mac before creating Xcode project |
 | Xcode build | ⏳ Pending — Milestone 1 |
 | Simulator verified | ⏳ Pending — Milestone 1 |
+
