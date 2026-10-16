@@ -13,7 +13,7 @@ Hatch motivates users to complete meaningful tasks and focus sessions by rewardi
 
 | Milestone | Description                                          | Status         |
 |-----------|------------------------------------------------------|----------------|
-| 0         | Project specification, documentation, HatchCore setup | 🔄 In Progress |
+| 0         | Project specification, documentation, HatchCore setup | 🔄 In Progress (Windows done; Mac steps pending) |
 | 1         | Xcode project, task creation, Core Data persistence  | ⏳ Pending     |
 | 2         | Task completion, gold/XP, undo window                | ⏳ Pending     |
 | 3         | Focus sessions, player levels                        | ⏳ Pending     |
@@ -87,9 +87,37 @@ Hatch/                          <- repository root
 
 ---
 
+## HatchCore Package
+
+`Packages/HatchCore/` is a local Swift package containing platform-independent game rules.
+It has **no** UIKit, SwiftUI, Core Data, or SpriteKit imports.
+
+**Run tests** (requires Swift 5.9+ toolchain — use a Mac or install Swift for Windows):
+```bash
+swift test --package-path Packages/HatchCore
+```
+
+**Expected**: 13 tests pass, 0 failures.
+
+**Mac first-session setup**: see [`docs/MAC_FIRST_SETUP.md`](docs/MAC_FIRST_SETUP.md)
+
+---
+
 ## Development Notes
 
+- All active development takes place directly on a single branch named `main` (no feature branches).
+- Git mutations (commits, pushes, pulls) are made only upon explicit developer request. Commits remain small and descriptive.
 - The Xcode project and Core Data model are created and managed **manually in Xcode** by the developer.
 - `project.pbxproj` and shared scheme files are committed. Personal `xcuserdata/` is ignored.
 - `Package.resolved` is committed to pin exact dependency versions.
 - All AI assistance is logged factually in `docs/AI_ASSISTANCE.md`. No test outcomes or approvals are fabricated.
+
+### Verification status (Milestone 0)
+
+| Check | Result |
+|---|---|
+| HatchCore source reviewed | ✅ Source reviewed |
+| `swift test` on Windows | ⚠️ Not executed — Swift toolchain absent on this machine |
+| `swift test` on Mac | ⏳ Pending — run on Mac before creating Xcode project |
+| Xcode build | ⏳ Pending — Milestone 1 |
+| Simulator verified | ⏳ Pending — Milestone 1 |

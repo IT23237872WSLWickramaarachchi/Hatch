@@ -66,6 +66,12 @@ Hatch/                   <- repository root (this folder)
 - `xcuserdata/`, `DerivedData/`, and build products are git-ignored.
 - `Package.resolved` is committed to pin resolved versions.
 
+**Git Workflow Rules**:
+- Single branch named `main` for all development; no feature branches.
+- Git mutations (commits, pushes, pulls) are executed only upon explicit developer instruction.
+- Commits are kept small, atomic, and descriptive.
+- Pulls are fast-forward only (`--ff-only`). Force-pushing, discarding changes, or rewriting history is prohibited unless explicitly authorized.
+
 ---
 
 ## 4. Task Completion

@@ -22,6 +22,7 @@ This document distinguishes **confirmed choices** from **provisional values**.
 | Minimum deployment target: iOS 26.0           | Confirmed | University Mac with Xcode 26.6                                                                      |
 | No third-party dependency managers (CocoaPods, Carthage) | Confirmed | Swift Package Manager covers the local HatchCore package; no external dependencies planned currently |
 | No multiplayer, backend accounts, or real-money IAP | Confirmed | Explicitly out of scope                                                                       |
+| Single-branch `main` Git workflow             | Confirmed | Simplifies synchronization between Windows and Mac; clear linear history for assessment; no feature branches |
 
 ---
 
@@ -165,3 +166,4 @@ Decisions for Part B are tracked separately and will be added when Part B work b
 | Version | Date       | Change                                |
 |---------|------------|---------------------------------------|
 | 0.1     | 2026-10-16 | Initial creation from project brief   |
+| 0.2     | 2026-10-16 | Adopt single-branch `main` Git workflow |
