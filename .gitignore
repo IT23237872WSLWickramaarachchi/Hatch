@@ -1,0 +1,73 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# Hatch — .gitignore
+# Commits shared Xcode project files (project.pbxproj, schemes, shared data).
+# Ignores per-user state, derived data, and build outputs.
+# ──────────────────────────────────────────────────────────────────────────────
+
+# ── macOS system files ────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Icon?
+ehthumbs.db
+Thumbs.db
+
+# ── Xcode — user-specific state (DO NOT commit) ───────────────────────────────
+# xcuserdata contains per-developer breakpoints, window layout, and open files.
+xcuserdata/
+*.xcuserstate
+*.xcuserdatad/
+
+# ── Xcode — build outputs ─────────────────────────────────────────────────────
+build/
+DerivedData/
+*.o
+*.d
+
+# ── Xcode — personal scheme overrides ────────────────────────────────────────
+# Shared schemes (xcshareddata/xcschemes/) ARE committed.
+# Personal schemes live in xcuserdata/ and are already excluded above.
+
+# NOTE: *.xcodeproj is NOT globally ignored.
+# The project.pbxproj and xcshareddata inside it are committed so teammates
+# can open the project without re-creating it manually.
+
+# ── Swift Package Manager ─────────────────────────────────────────────────────
+.build/
+.swiftpm/xcode/
+# Package.resolved is committed so everyone uses the same dependency versions.
+# Do NOT add Package.resolved here.
+
+# ── Instruments / profiling ───────────────────────────────────────────────────
+*.trace
+
+# ── Archives and exports ──────────────────────────────────────────────────────
+*.ipa
+*.dSYM.zip
+*.dSYM
+*.xcarchive
+
+# ── Playgrounds ───────────────────────────────────────────────────────────────
+timeline.xctimeline
+playground.xcworkspace
+
+# ── CocoaPods (not used, but listed for safety) ───────────────────────────────
+Pods/
+*.xcworkspace
+
+# ── Fastlane (if added later) ────────────────────────────────────────────────
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+
+# ── Antigravity / IDE ─────────────────────────────────────────────────────────
+.gemini/
+.agents/
+
+# ── Environment / secrets ────────────────────────────────────────────────────
+.env
+*.pem
+*.p12
