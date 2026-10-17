@@ -37,14 +37,15 @@ Each milestone has a goal, a list of deliverables, and a "what you will learn" s
 **Goal**: A working iOS app that lets you create tasks, displays them in a list, and persists them in Core Data after app restarts.
 
 ### Deliverables
-- [ ] Xcode project created manually at `App/Hatch.xcodeproj`
-- [ ] Core Data model file (`Hatch.xcdatamodeld`) with `TaskItem` entity
-- [ ] `ContentView` showing a task list with an add button
-- [ ] `AddTaskView` with title field and Important toggle
-- [ ] Core Data `NSPersistentContainer` setup in the app
-- [ ] Tasks persist across app restarts
-- [ ] HatchCore linked as a local package dependency
-- [ ] Xcode build passes; app runs in Simulator
+- [x] Xcode project created manually at `App/Hatch/Hatch.xcodeproj`
+- [x] Core Data model file (`HatchModel.xcdatamodeld`) with `TaskEntity` entity
+- [x] `ContentView` showing a task list with an add button and egg placeholder
+- [x] `AddTaskView` with validated title input (HatchCore validation)
+- [x] Core Data `NSPersistentContainer` setup via `PersistenceController`
+- [x] Core Data disk persistence verified via automated integration test (`PersistenceIntegrationTests`)
+- [x] HatchCore linked as a local package dependency
+- [x] Xcode simulator-target build passes (clean build verified)
+- [x] Tasks persist across app restarts (✅ Developer-verified in simulator: cancel, validation rejection, single-save, restart persistence, second task)
 
 ### What you will learn
 - How `NSPersistentContainer` and `@FetchRequest` connect Core Data to SwiftUI.

@@ -1,3 +1,4 @@
+import Foundation
 /// TaskTitle.swift — HatchCore
 ///
 /// Public API for validating and normalising a user-supplied task title.

@@ -57,7 +57,8 @@ Hatch/                   <- repository root (this folder)
 │   └── AI_ASSISTANCE.md
 ├── Packages/
 │   └── HatchCore/       <- Swift package; Milestone 0
-└── App/                 <- Xcode project created manually in Milestone 1
+└── App/
+    └── Hatch/           <- Xcode project at App/Hatch/Hatch.xcodeproj (Milestone 1)
 ```
 
 **Rules**:

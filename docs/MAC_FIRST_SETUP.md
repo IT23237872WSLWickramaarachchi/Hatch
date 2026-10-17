@@ -152,11 +152,11 @@ A file panel opens asking where to save the project.
 3. **Uncheck** "Create Git repository on my Mac" — a repository already exists.
 4. Click **Create**.
 
-✅ The project file is now at `Hatch/App/Hatch.xcodeproj`. No second `.git` folder should have been created inside `App/`. Confirm:
+✅ The project file is now at `Hatch/App/Hatch/Hatch.xcodeproj`. No second `.git` folder should have been created inside `App/`. Confirm:
 
 **Terminal:**
 ```bash
-ls Hatch/App/
+ls Hatch/App/Hatch/
 # Expected: Hatch.xcodeproj   Hatch/   HatchTests/   HatchUITests/
 ls Hatch/App/.git 2>/dev/null && echo "ERROR: nested repo found" || echo "OK: no nested repo"
 ```
@@ -264,6 +264,8 @@ With `TaskEntity` selected, click the **+** button in the Attributes section and
 
 For each attribute, ensure **Optional** is **unchecked** in the Data Model Inspector (right panel) — these three fields are required for every task record.
 
+> **Model Optionality vs. Swift Optional Types**: In Xcode's Class Definition codegen, generated properties (such as `var title: String?`, `var id: UUID?`, `var createdAt: Date?`) are declared as Swift optionals because Core Data managed objects can exist in unpopulated or faulted states in memory prior to persistence validation. This does not mean the underlying model attribute is optional; non-optional validation (`isOptional == false`) is enforced by Core Data when the managed object context performs a save.
+
 > **UUID** is a built-in Core Data attribute type that stores a 128-bit universally unique identifier. We use it instead of an auto-increment integer because UUIDs remain stable and unique even if records are created on multiple devices or databases are merged.
 
 ### 7.4 Configure code generation
@@ -301,30 +303,28 @@ Set:
 git status
 ```
 
-You should see untracked files under `App/`. The important ones to commit:
+You should see untracked or staged/unstaged files under `App/Hatch/`. The important ones to commit:
 
 ```
-App/Hatch.xcodeproj/project.pbxproj          ← the project graph
-App/Hatch.xcodeproj/project.xcworkspace/     ← workspace settings
-App/Hatch.xcodeproj/xcshareddata/            ← shared schemes
-App/Hatch/                                   ← source files and assets
-App/HatchTests/                              ← test stubs
-App/HatchUITests/                            ← UI test stubs
+App/Hatch/Hatch.xcodeproj/project.pbxproj          ← the project graph
+App/Hatch/Hatch/                                   ← source files, assets, and HatchModel
+App/Hatch/HatchTests/                              ← test stubs
+App/Hatch/HatchUITests/                            ← UI test stubs
 ```
 
 The following should **not** appear (they are `.gitignore`-d):
-- `App/Hatch.xcodeproj/xcuserdata/` — if this appears, do not stage it.
-- `DerivedData/` — should not appear in the repository at all.
+- `App/Hatch/Hatch.xcodeproj/xcuserdata/` — personal user state, excluded by `.gitignore`.
+- `DerivedData/` — build artifacts, excluded by `.gitignore`.
+
+> **Note on `project.xcworkspace`**: The internal folder `Hatch.xcodeproj/project.xcworkspace/` is excluded by the `.gitignore` rule `*.xcworkspace`. In a standalone single-project setup without custom shared schemes, `contents.xcworkspacedata` simply points to `self:` and is recreated automatically by Xcode when the project is opened. It does not need to be force-tracked.
 
 ### 8.2 Stage the right files
 
 ```bash
-git add App/Hatch.xcodeproj/project.pbxproj
-git add "App/Hatch.xcodeproj/project.xcworkspace/contents.xcworkspacedata"
-git add App/Hatch.xcodeproj/xcshareddata/
-git add App/Hatch/
-git add App/HatchTests/
-git add App/HatchUITests/
+git add App/Hatch/Hatch.xcodeproj/project.pbxproj
+git add App/Hatch/Hatch/
+git add App/Hatch/HatchTests/
+git add App/Hatch/HatchUITests/
 ```
 
 ### 8.3 Review before committing
@@ -340,13 +340,13 @@ Verify no `xcuserdata/`, no `DerivedData/`, no `.env` or signing files appear.
 ```bash
 git commit -m "feat(milestone-1-setup): add Xcode project and HatchModel Core Data schema
 
-- App/Hatch.xcodeproj: iOS SwiftUI app, iOS 26.0 minimum, HatchCore linked
-- App/Hatch/HatchModel.xcdatamodeld: TaskEntity with id (UUID), title (String),
-  createdAt (Date); Class Definition codegen; no manually written managed-object class
-- App/HatchTests/, App/HatchUITests/: test stubs
+- App/Hatch/Hatch.xcodeproj: iOS SwiftUI app, iOS 26.0 minimum, HatchCore linked
+- App/Hatch/Hatch/HatchModel.xcdatamodeld: TaskEntity with id (UUID), title (String),
+  createdAt (Date); non-optional attributes; Class Definition codegen
+- App/Hatch/HatchTests/, App/Hatch/HatchUITests/: test stubs
 
-iOS build: confirmed clean (simulator launch verified).
-swift test HatchCore: already verified separately."
+iOS simulator build: confirmed clean (xcodebuild succeeded).
+swift test HatchCore: 13 passed, 0 failures."
 ```
 
 ---

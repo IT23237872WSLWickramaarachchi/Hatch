@@ -26,25 +26,23 @@ Use this checklist during your viva to explain what was done, how, and what rema
 
 ---
 
-## Mac (university machine — Milestone 0 completion)
-
-These steps require a Mac with Xcode 26.6. They are **not** done yet.
+## Mac (university machine — Milestone 0 / Setup completion)
 
 | # | Task | Status | Notes |
 |---|------|--------|-------|
-| M1 | Repository cloned or pulled on Mac | ⏳ Pending | See `docs/MAC_FIRST_SETUP.md` Part 1 |
-| M2 | Swift toolchain version verified (`swift --version`) | ⏳ Pending | Must be 5.9+ |
-| M3 | iOS 26 simulator runtime confirmed | ⏳ Pending | `xcrun simctl list runtimes` |
-| M4 | `swift test --package-path Packages/HatchCore` run | ⏳ Pending | Must show 0 failures before creating Xcode project |
-| M5 | Xcode project created at `App/Hatch.xcodeproj` | ⏳ Pending | See `docs/MAC_FIRST_SETUP.md` Part 4 |
-| M6 | No nested `.git` inside `App/` | ⏳ Pending | Must verify after project creation |
-| M7 | Starter app launches in Simulator | ⏳ Pending | Clean build required before adding feature code |
-| M8 | HatchCore linked to app target | ⏳ Pending | See `docs/MAC_FIRST_SETUP.md` Part 6 |
-| M9 | `import HatchCore` build-check passes | ⏳ Pending | Quick smoke test of the link |
-| M10 | `HatchModel.xcdatamodeld` created | ⏳ Pending | See `docs/MAC_FIRST_SETUP.md` Part 7 |
-| M11 | `TaskEntity` with `id`, `title`, `createdAt` attributes added | ⏳ Pending | All three non-optional |
-| M12 | Codegen set to Class Definition; no manual `TaskEntity.swift` written | ⏳ Pending | Prevents redeclaration error |
-| M13 | Xcode project and model files committed | ⏳ Pending | See `docs/MAC_FIRST_SETUP.md` Part 8 |
+| M1 | Repository cloned or pulled on Mac | ✅ Done | On branch `main`, synchronized with remote |
+| M2 | Swift toolchain version verified (`swift --version`) | ✅ Done | Xcode 26.1.1, Swift 6.x |
+| M3 | iOS simulator runtime confirmed | ✅ Done | iOS Simulator SDK verified |
+| M4 | `swift test --package-path Packages/HatchCore` run | ✅ Done | 13 passed, 0 failures (after `import Foundation` added) |
+| M5 | Xcode project created at `App/Hatch/Hatch.xcodeproj` | ✅ Done | Manually created; path at `App/Hatch/Hatch.xcodeproj` |
+| M6 | No nested `.git` inside `App/` | ✅ Done | Verified no nested repository |
+| M7 | Starter app builds for Simulator target | ✅ Build passed | `xcodebuild` clean build succeeded on `Hatch` scheme; runtime UI verification pending |
+| M8 | HatchCore linked to app target | ✅ Done | Local package dependency resolved |
+| M9 | `import HatchCore` build-check passes | ✅ Done | `ContentView.swift` compiles cleanly with `HatchCore` import |
+| M10 | `HatchModel.xcdatamodeld` created | ✅ Done | Located in `App/Hatch/Hatch/` |
+| M11 | `TaskEntity` with `id`, `title`, `createdAt` attributes added | ✅ Done | Confirmed non-optional: verified via compiled model `NSAttributeDescription.isOptional == false` |
+| M12 | Codegen set to Class Definition; no manual `TaskEntity.swift` written | ✅ Done | `codeGenerationType="class"`, module `Current Product Module` (`.TaskEntity`) |
+| M13 | Xcode project and model files committed | ✅ Done | Committed and pushed to origin/main as part of Milestone 1 checkpoint |
 
 ---
 

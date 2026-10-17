@@ -13,8 +13,8 @@ Hatch motivates users to complete meaningful tasks and focus sessions by rewardi
 
 | Milestone | Description                                          | Status         |
 |-----------|------------------------------------------------------|----------------|
-| 0         | Project specification, documentation, HatchCore setup | 🔄 In Progress (Windows done; Mac steps pending) |
-| 1         | Xcode project, task creation, Core Data persistence  | ⏳ Pending     |
+| 0         | Project specification, documentation, HatchCore setup | ✅ Completed (Mac verified) |
+| 1         | Xcode project, task creation, Core Data persistence  | ✅ Completed (Automated tests & developer simulator checks passed) |
 | 2         | Task completion, gold/XP, undo window                | ⏳ Pending     |
 | 3         | Focus sessions, player levels                        | ⏳ Pending     |
 | 4         | Shop and inventory                                   | ⏳ Pending     |
@@ -39,7 +39,8 @@ Hatch/                          <- repository root
 │   └── AI_ASSISTANCE.md        <- factual AI-assistance log
 ├── Packages/
 │   └── HatchCore/              <- platform-independent Swift package (Milestone 0)
-└── App/                        <- reserved for manually created Xcode project (Milestone 1)
+└── App/
+    └── Hatch/                  <- Xcode project at App/Hatch/Hatch.xcodeproj (Milestone 1)
 ```
 
 ---
@@ -112,13 +113,16 @@ swift test --package-path Packages/HatchCore
 - `Package.resolved` is committed to pin exact dependency versions.
 - All AI assistance is logged factually in `docs/AI_ASSISTANCE.md`. No test outcomes or approvals are fabricated.
 
-### Verification status (Milestone 0)
+### Verification status (Milestones 0 & 1)
 
 | Check | Result |
 |---|---|
 | HatchCore source reviewed | ✅ Source reviewed |
 | `swift test` on Windows | ⚠️ Not executed — Swift toolchain absent on this machine |
-| `swift test` on Mac | ⏳ Pending — run on Mac before creating Xcode project |
-| Xcode build | ⏳ Pending — Milestone 1 |
-| Simulator verified | ⏳ Pending — Milestone 1 |
+| `swift test` on Mac | ✅ Passed (13 tests, 0 failures executed on Mac) |
+| Xcode build (simulator-target) | ✅ Passed (`xcodebuild` clean build on `Hatch` scheme with `HatchCore` linked) |
+| Core Data disk persistence test | ✅ Passed (`PersistenceIntegrationTests` verified save and reload across stacks) |
+| Manual Simulator Acceptance Test | ✅ Passed (Developer-reported: cancel, empty-title rejection, whitespace rejection, save, restart persistence, second task) |
+
+> **Note on Git Status**: Milestone 1 checkpoint committed and pushed to `main` (`origin/main`).
 

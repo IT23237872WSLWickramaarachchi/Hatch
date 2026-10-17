@@ -128,4 +128,89 @@ Each entry records:
 - *Documentation updated*: Checked and verified across all project specs and checklists.
 - *Branch transition*: Pending developer authorization.
 
+---
+
+### Session 4 — 2026-10-17
+
+**Session goal**: Perform read-only review of Mac environment setup, execute package tests and simulator build, inspect Core Data model configuration, align project path documentation to `App/Hatch/Hatch.xcodeproj`, and document local Git state.
+
+**AI contributions**:
+- Inspected repository status, staged/unstaged files, and Git branches on Mac.
+- Executed `swift test --package-path Packages/HatchCore`: verified 13 of 13 tests passed (0 failures).
+- Executed clean `xcodebuild` on `Hatch` scheme for iOS Simulator target: verified build succeeded with `HatchCore` linked.
+- Inspected compiled Core Data model (`HatchModel.momd`) via Swift inspection of `NSAttributeDescription.isOptional`: verified `id`, `title`, and `createdAt` all have `isOptional == false`.
+- Clarified distinction between Core Data model optionality and Swift optional properties (`Date?`, `UUID?`, `String?`) in generated `NSManagedObject` subclasses.
+- Updated documentation ([README.md](../README.md), [PROJECT_SPEC.md](../PROJECT_SPEC.md), [docs/ROADMAP.md](ROADMAP.md), [docs/MILESTONE_0_CHECKLIST.md](MILESTONE_0_CHECKLIST.md), [docs/MAC_FIRST_SETUP.md](MAC_FIRST_SETUP.md)) to reflect the actual project path `App/Hatch/Hatch.xcodeproj` and record factual verification results.
+- Documented that `project.xcworkspace` is safely excluded by the existing `*.xcworkspace` rule in `.gitignore`, and that local setup changes on the Mac working tree are not yet committed or pushed to GitHub remote (`origin/main`).
+
+**Developer contributions**:
+- Added `import Foundation` to `TaskTitle.swift`.
+- Manually created Xcode project `Hatch.xcodeproj`, SwiftUI starter code, and Core Data model `HatchModel.xcdatamodeld` on the university Mac.
+- Clarified the distinction between model optionality in Core Data validation and Swift property types in generated classes.
+
+**Verification status**:
+- *swift test (Mac)*: ✅ Passed (13 tests, 0 failures in 0.005s).
+- *Xcode build (Simulator)*: ✅ Passed (clean simulator build with `HatchCore` linked).
+- *Core Data model optionality*: ✅ Verified non-optional (`isOptional == false`) via compiled `NSAttributeDescription`.
+- *Task persistence & UI behavior*: ⏳ Unimplemented / pending Milestone 1.
+- *Git status*: Changes exist locally (staged and unstaged) on Mac; no commits, pushes, pulls, or branches executed.
+
+---
+
+### Session 5 — 2026-10-17
+
+**Session goal**: Implement Milestone 1: Core Data persistent stack, task list home screen, validated add-task sheet, and automated disk-backed persistence integration tests.
+
+**AI contributions**:
+- Created `App/Hatch/Hatch/PersistenceController.swift` managing `NSPersistentContainer("HatchModel")`, providing main-thread `viewContext`, loading and non-fatal error reporting states, and in-memory preview support.
+- Created `App/Hatch/Hatch/AddTaskView.swift` providing sheet UI with `HatchCore.validateTaskTitle(_:)` validation, error messaging, `isSaving` concurrency guard, context rollback on error, and safe cancellation.
+- Updated `App/Hatch/Hatch/ContentView.swift` with "Hatch" navigation title, stylized static `EggPlaceholderView`, `@FetchRequest` task list sorted stably by `createdAt` and `id`, accessible empty state, and sheet presentation.
+- Updated `App/Hatch/Hatch/HatchApp.swift` to inject `PersistenceController.shared` into the environment.
+- Created `App/Hatch/HatchTests/PersistenceIntegrationTests.swift` implementing an automated test that writes a task to a disk-backed SQLite store, disposes the container, reopens the store in a new container, and verifies the entity survived stack reload.
+- Executed `swift test --package-path Packages/HatchCore`: 13 passed, 0 failures.
+- Executed `xcodebuild build` on `Hatch` scheme: BUILD SUCCEEDED.
+- Executed `xcodebuild test` on iPhone 17 Simulator: unit tests and persistence integration test passed (`** TEST SUCCEEDED **`).
+- Updated documentation ([README.md](../README.md), [docs/ROADMAP.md](ROADMAP.md), and [docs/AI_ASSISTANCE.md](AI_ASSISTANCE.md)).
+
+**Developer contributions**:
+- Outlined Milestone 1 requirements, architecture constraints, and manual simulator acceptance criteria.
+- Retains exclusive control of Git operations.
+- Will execute the manual simulator acceptance test.
+
+**Verification status**:
+- *swift test (Mac)*: ✅ Passed (13 tests, 0 failures).
+- *Xcode build (Simulator)*: ✅ Passed (clean build on `Hatch` scheme).
+- *Persistence integration test*: ✅ Passed (`PersistenceIntegrationTests` verified disk persistence across container instances on iPhone 17 simulator).
+- *Manual simulator acceptance test*: ⏳ Pending developer execution at time of session.
+- *Git status*: Local modifications present on `main`; no commits or pushes executed.
+
+---
+
+### Session 6 — 2026-10-17
+
+**Session goal**: Record developer-reported simulator acceptance results, complete Milestone 1 documentation, and stage, commit, and push the working checkpoint to `origin/main`.
+
+**AI contributions**:
+- Updated [README.md](../README.md), [docs/ROADMAP.md](ROADMAP.md), and [docs/MILESTONE_0_CHECKLIST.md](MILESTONE_0_CHECKLIST.md) to record Milestone 1 completion with developer-reported simulator results distinguished from automated tests.
+- Reviewed repository state, working tree, and exclusion rules prior to staging.
+- Staged all Milestone 1 source files, shared Xcode project files, model schema, tests, and documentation.
+- Created descriptive commit and pushed to `origin/main` upon explicit developer authorization.
+
+**Developer contributions**:
+- Performed all six manual simulator acceptance checks:
+  1. Cancellation (sheet dismissed without creating record).
+  2. Empty-title rejection (proper validation error displayed).
+  3. Whitespace-only rejection (proper validation error displayed).
+  4. Task saving (saved "Read chapter 1" once with accurate timestamp).
+  5. Persistence across app stop and relaunch (task survived restart).
+  6. Second task creation (both tasks displayed in stable sort order).
+- Explicitly authorized staging, committing, and pushing to `origin/main`.
+
+**Verification status**:
+- *swift test (Mac)*: ✅ Passed (13 tests, 0 failures).
+- *Xcode build (Simulator)*: ✅ Passed (clean build on `Hatch` scheme).
+- *Persistence integration test*: ✅ Passed (`PersistenceIntegrationTests` passed on iPhone 17 simulator).
+- *Simulator acceptance test*: ✅ Passed (Developer-reported all six criteria confirmed).
+- *Git push*: Completed to `origin/main`.
+
 
