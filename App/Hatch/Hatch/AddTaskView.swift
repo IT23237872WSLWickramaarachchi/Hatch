@@ -2,7 +2,7 @@
 //  AddTaskView.swift
 //  Hatch
 //
-//  Created for Hatch Milestone 1.
+//  Created for Hatch Milestone 1, updated for Milestone 2.
 //
 
 import SwiftUI
@@ -13,6 +13,7 @@ import HatchCore
 ///
 /// Purpose:
 /// - Collects a task title from the user.
+/// - Allows setting the Important flag (Normal: 10g/20xp vs Important: 15g/30xp).
 /// - Validates the input using HatchCore's `validateTaskTitle(_:)` function.
 /// - Inserts a new `TaskEntity` into Core Data upon valid submission.
 /// - Prevents duplicate submissions and rolls back on failure.
@@ -21,6 +22,7 @@ public struct AddTaskView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var title: String = ""
+    @State private var isImportant: Bool = false
     @State private var errorMessage: String? = nil
     @State private var isSaving: Bool = false
     @FocusState private var isTitleFocused: Bool
@@ -36,14 +38,23 @@ public struct AddTaskView: View {
                         .accessibilityLabel("Task title input")
                         .disabled(isSaving)
                         .onSubmit(saveTask)
+
+                    Toggle("Mark as Important", isOn: $isImportant)
+                        .disabled(isSaving)
+                        .accessibilityLabel("Mark task as important toggle")
                 } header: {
                     Text("Task Details")
                 } footer: {
-                    if let errorMessage = errorMessage {
-                        Text(errorMessage)
-                            .foregroundStyle(.red)
-                            .font(.subheadline)
-                            .accessibilityLabel("Validation error: \(errorMessage)")
+                    VStack(alignment: .leading, spacing: 4) {
+                        if let errorMessage = errorMessage {
+                            Text(errorMessage)
+                                .foregroundStyle(.red)
+                                .font(.subheadline)
+                                .accessibilityLabel("Validation error: \(errorMessage)")
+                        }
+                        Text("Normal: 10 Gold, 20 XP • Important: 15 Gold, 30 XP")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
@@ -96,6 +107,11 @@ public struct AddTaskView: View {
             newTask.id = UUID()
             newTask.title = normalizedTitle
             newTask.createdAt = Date()
+            newTask.isImportant = isImportant
+            newTask.isCompleted = false
+            newTask.isFinalized = false
+            newTask.awardedGold = 0
+            newTask.awardedXP = 0
 
             do {
                 try viewContext.save()

@@ -213,4 +213,58 @@ Each entry records:
 - *Simulator acceptance test*: ✅ Passed (Developer-reported all six criteria confirmed).
 - *Git push*: Completed to `origin/main`.
 
+---
+
+## Milestone 2 — Task Completion, Rewards, Undo, and Reconciliation
+
+### Session 7 — 2026-10-17
+
+**Session goal**: Implement Milestone 2: create Core Data model V2 (`HatchModelV2.xcdatamodel`) preserving V1, configure lightweight automatic migration, implement HatchCore reward and undo timing logic, update UI for task completion, undo banner, and player balances, and write comprehensive automated integration tests.
+
+**AI contributions**:
+- Created `HatchCore/GameBalance.swift` holding balancing constants for task rewards (Normal: 10g/20xp; Important: 15g/30xp) and undo duration (5.0s).
+- Created `HatchCore/RewardCalculator.swift` with invariant check (`important >= normal`) and `HatchCore/UndoTiming.swift` with wall-clock deadline calculation and boundary validation.
+- Authored 9 unit tests in `RewardCalculatorTests.swift` and `UndoTimingTests.swift` (bringing total package test suite to 22 tests).
+- Created `HatchModelV2.xcdatamodel` preserving `HatchModel.xcdatamodel` (Milestone 1 V1). Configured `.xccurrentversion` to point to V2.
+- Added `PlayerEntity` (`id`, `finalizedGold`, `finalizedXP`, `pendingGold`, `pendingXP`) and extended `TaskEntity` (`isImportant`, `isCompleted`, `isFinalized`, `completedAt`, `undoDeadline`, `awardedGold`, `awardedXP`) with default values.
+- Updated `PersistenceController.swift` to enable `shouldMigrateStoreAutomatically = true` and `shouldInferMappingModelAutomatically = true` before loading persistent stores.
+- Implemented single `PlayerEntity` reuse (`getOrCreatePlayer`), completion handling (`completeTask`), undo rollback (`undoTaskCompletion`), finalization (`finalizeTask`), and relaunch/foreground reconciliation (`reconcilePendingTasks`). Persisted `undoDeadline` is strictly used rather than recalculating from `GameBalance`.
+- Updated `AddTaskView.swift` to support the "Important Task" toggle with inline reward guidance.
+- Updated `ContentView.swift` to display spendable finalized gold/XP and pending rewards banner, checkmark completion action, active vs completed sections, live countdown undo banner with undo button, and foreground reconciliation via `scenePhase` and `.onAppear`.
+- Authored integration test suite `PersistenceIntegrationTests.swift`:
+  - `testExistingMilestone1StoreMigratesToV2AndPreservesRecords()`: Created a SQLite store using the original V1 model bundle, migrated automatically to V2, and asserted surviving tasks with non-null attributes.
+  - `testCompletingTaskAwardsExactlyOnceAndRepeatedTapsAreIdempotent()`: Verified idempotency and single player entity reuse.
+  - `testUndoWithinWindowRestoresTaskAndDeductsPendingBalances()`: Verified full rollback of completion and pending rewards within the 5s window.
+  - `testUndoAtOrAfterExpiryFollowsSpecifiedBoundaryAndFinalizesInstead()`: Verified that undo at or past deadline is rejected and task is finalized.
+  - `testCompletionAndBalancesSurviveReopeningStore()`: Verified persistence across container restarts.
+  - `testReconciliationFinalizesExpiredTasksOnRelaunch()`: Verified that backgrounded or suspended expired tasks finalize immediately upon reconciliation.
+  - `testSaveFailureDuringRewardOperationRollsBackStateAndPreventsRewardDuplication()`: Verified that forced context save failures during task completion roll back in-memory task and player properties cleanly, leave disk store unmutated, and permit clean retry without reward duplication.
+- Updated `PersistenceController.swift` error-handling blocks to invoke `targetContext.rollback()` on save failures.
+- Executed `swift test --package-path Packages/HatchCore`: 22 passed, 0 failures.
+- Executed `xcodebuild test` on iPhone 17 Simulator: 10 tests passed (8 in `PersistenceIntegrationTests`, 2 in `HatchTests`), 0 failures (`** TEST SUCCEEDED **`).
+- Executed clean `xcodebuild build` for simulator target: `** BUILD SUCCEEDED **`.
+- Updated documentation ([README.md](../README.md), [docs/ROADMAP.md](ROADMAP.md), and [docs/AI_ASSISTANCE.md](AI_ASSISTANCE.md)).
+
+**Developer contributions**:
+- Specified Milestone 2 requirements: preserving Milestone 1 model, configuring lightweight migration, using persisted `undoDeadline`, single `PlayerEntity` reuse, pending reward isolation, and relaunch/foreground reconciliation.
+- Prohibited database deletion, app reinstallation, and Git mutations.
+- Identified omission of save-failure integration test from report and directed its implementation.
+- Performed all Milestone 2 manual simulator acceptance checks:
+  1. Verified Milestone 1 existing tasks survived migration.
+  2. Created normal task (10 gold, 20 XP) and important task (15 gold, 30 XP with star badge).
+  3. Verified completion moves task to completed section, shows undo countdown banner, and isolates pending rewards from spendable balances.
+  4. Verified tapping Undo within 5 seconds restores task and rolls back pending balances.
+  5. Verified letting 5-second countdown expire finalizes task and transfers rewards to spendable balances.
+  6. Verified backgrounding app during active undo window and returning to foreground after deadline reconciles and finalizes task automatically.
+
+**Verification status**:
+- *swift test (Mac)*: ✅ Passed (22 tests, 0 failures).
+- *Xcode build (Simulator)*: ✅ Passed (clean build on `Hatch` scheme).
+- *Core Data lightweight migration test*: ✅ Passed (`PersistenceIntegrationTests.testExistingMilestone1StoreMigratesToV2AndPreservesRecords`).
+- *Persistence & undo integration tests*: ✅ Passed (8 integration tests passed on iPhone 17 Simulator).
+- *Save-failure rollback integration test*: ✅ Passed (`PersistenceIntegrationTests.testSaveFailureDuringRewardOperationRollsBackStateAndPreventsRewardDuplication`).
+- *Manual simulator acceptance test*: ✅ Passed (Developer-confirmed all six checks passed).
+- *Git status*: Changes present locally on working tree (`main`); no commits or pushes performed.
+
+
 

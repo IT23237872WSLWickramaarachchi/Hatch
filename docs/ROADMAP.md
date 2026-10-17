@@ -60,12 +60,15 @@ Each milestone has a goal, a list of deliverables, and a "what you will learn" s
 **Goal**: Mark tasks complete, earn gold and XP, and support a 5-second undo window that safely rolls back if triggered.
 
 ### Deliverables
-- [ ] `CompletionPending` state stored in Core Data
-- [ ] Undo countdown UI element (5-second window)
-- [ ] Pending gold/XP clearly distinguished from finalized in the UI
-- [ ] Finalization persisted and reconciled on relaunch
-- [ ] HatchCore unit tests for the undo state machine
-- [ ] Player gold and XP displayed on Home screen
+- [x] `CompletionPending` state stored in Core Data (`isCompleted`, `isFinalized`, `completedAt`, `undoDeadline`, `awardedGold`, `awardedXP`)
+- [x] Undo countdown UI element (5-second window banner with active countdown and Undo button)
+- [x] Pending gold/XP clearly distinguished from finalized in the UI and persisted on `PlayerEntity`
+- [x] Finalization persisted and reconciled on relaunch and foreground transition (`scenePhase`)
+- [x] HatchCore unit tests for reward calculation and undo timing state machine (22/22 tests passing)
+- [x] Automated integration tests verifying lightweight migration from V1 store, idempotent completion, undo rollback, and relaunch reconciliation (`PersistenceIntegrationTests`)
+- [x] Automated integration test verifying save failure during reward operations rolls back state atomically and prevents duplicated rewards (`PersistenceIntegrationTests.testSaveFailureDuringRewardOperationRollsBackStateAndPreventsRewardDuplication`)
+- [x] Player gold and XP displayed on Home screen (spendable finalized vs pending)
+- [x] Manual simulator acceptance test (✅ Developer-confirmed: normal/important task creation, instant completion feedback, undo rollback within 5s, 5s expiry finalization, and background/relaunch reconciliation)
 
 ### What you will learn
 - Why we persist the deadline rather than trust a timer.

@@ -15,7 +15,7 @@ Hatch motivates users to complete meaningful tasks and focus sessions by rewardi
 |-----------|------------------------------------------------------|----------------|
 | 0         | Project specification, documentation, HatchCore setup | ✅ Completed (Mac verified) |
 | 1         | Xcode project, task creation, Core Data persistence  | ✅ Completed (Automated tests & developer simulator checks passed) |
-| 2         | Task completion, gold/XP, undo window                | ⏳ Pending     |
+| 2         | Task completion, gold/XP, undo window                | ✅ Completed (Automated integration & developer simulator checks passed) |
 | 3         | Focus sessions, player levels                        | ⏳ Pending     |
 | 4         | Shop and inventory                                   | ⏳ Pending     |
 | 5         | Hatching and evolution                               | ⏳ Pending     |
@@ -113,16 +113,20 @@ swift test --package-path Packages/HatchCore
 - `Package.resolved` is committed to pin exact dependency versions.
 - All AI assistance is logged factually in `docs/AI_ASSISTANCE.md`. No test outcomes or approvals are fabricated.
 
-### Verification status (Milestones 0 & 1)
+### Verification status (Milestones 0, 1 & 2)
 
 | Check | Result |
 |---|---|
 | HatchCore source reviewed | ✅ Source reviewed |
 | `swift test` on Windows | ⚠️ Not executed — Swift toolchain absent on this machine |
-| `swift test` on Mac | ✅ Passed (13 tests, 0 failures executed on Mac) |
+| `swift test` on Mac | ✅ Passed (22 tests, 0 failures executed on Mac: Title validation, Rewards, Undo timing) |
 | Xcode build (simulator-target) | ✅ Passed (`xcodebuild` clean build on `Hatch` scheme with `HatchCore` linked) |
 | Core Data disk persistence test | ✅ Passed (`PersistenceIntegrationTests` verified save and reload across stacks) |
-| Manual Simulator Acceptance Test | ✅ Passed (Developer-reported: cancel, empty-title rejection, whitespace rejection, save, restart persistence, second task) |
+| Core Data lightweight migration test | ✅ Passed (`PersistenceIntegrationTests` verified Milestone 1 V1 store migrates cleanly to V2) |
+| Undo & reconciliation integration test | ✅ Passed (`PersistenceIntegrationTests` verified 5s window, expiry boundary, and launch reconciliation) |
+| Core Data save-failure rollback test | ✅ Passed (`PersistenceIntegrationTests` verified no partial changes, in-memory rollback, and clean retry without duplicated rewards) |
+| Milestone 1 Manual Acceptance | ✅ Passed (Developer-reported: cancel, validation, single-save, restart persistence, second task) |
+| Milestone 2 Manual Acceptance | ✅ Passed (Developer-confirmed: normal/important creation, instant completion feedback, undo within 5s, 5s expiry finalization, and background/relaunch reconciliation) |
 
-> **Note on Git Status**: Milestone 1 checkpoint committed and pushed to `main` (`origin/main`).
+> **Note on Git Status**: Milestone 1 checkpoint is on `origin/main`. Milestone 2 changes are on the local working tree (awaiting developer authorization to commit).
 
