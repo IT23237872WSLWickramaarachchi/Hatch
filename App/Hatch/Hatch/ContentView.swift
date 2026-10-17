@@ -21,6 +21,7 @@ public struct ContentView: View {
     @EnvironmentObject private var persistence: PersistenceController
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @FetchRequest(sortDescriptors: [])
     private var players: FetchedResults<PlayerEntity>
@@ -41,6 +42,12 @@ public struct ContentView: View {
 
     private var player: PlayerEntity? {
         players.first
+    }
+
+    /// Level progression derived exclusively from finalized lifetime XP (PROJECT_SPEC.md § 6.2).
+    /// Pending task rewards are strictly excluded.
+    private var levelProgress: PlayerProgression.LevelProgress {
+        PlayerProgression.progress(forCumulativeXP: player?.finalizedXP ?? 0)
     }
 
     private var activeTasks: [TaskEntity] {
@@ -65,10 +72,15 @@ public struct ContentView: View {
                 homeContent
             }
         }
+        .onAppear {
+            try? persistence.reconcilePendingTasks()
+            try? persistence.reconcileActiveFocusSession()
+        }
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
-                // Reconcile tasks whose undo deadline passed while app was backgrounded/suspended
+                // Reconcile tasks and focus sessions when returning to foreground
                 try? persistence.reconcilePendingTasks()
+                try? persistence.reconcileActiveFocusSession()
             }
         }
     }
@@ -105,6 +117,15 @@ public struct ContentView: View {
             }
             .navigationTitle("Hatch")
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    NavigationLink(destination: FocusView()) {
+                        Label("Focus", systemImage: "timer")
+                            .font(.body.weight(.medium))
+                    }
+                    .accessibilityLabel("Focus Timer")
+                    .accessibilityHint("Opens the focus session timer")
+                }
+
                 ToolbarItem(placement: .primaryAction) {
                     Button {
                         isPresentingAddTask = true
@@ -127,6 +148,32 @@ public struct ContentView: View {
         VStack(spacing: 12) {
             EggPlaceholderView()
                 .padding(.top, 4)
+
+            // Player Level and XP Progress Card
+            VStack(spacing: 6) {
+                HStack {
+                    Label("Level \(levelProgress.level)", systemImage: "crown.fill")
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(.purple)
+
+                    Spacer()
+
+                    Text("\(levelProgress.currentXPInLevel) / \(levelProgress.xpRequiredForNextLevel) XP")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                ProgressView(value: levelProgress.progressFraction)
+                    .tint(.purple)
+                    .animation(reduceMotion ? nil : .spring(response: 0.5, dampingFraction: 0.7), value: levelProgress.progressFraction)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .background(Color(uiColor: .tertiarySystemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .padding(.horizontal, 16)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Player Level \(levelProgress.level), \(levelProgress.currentXPInLevel) of \(levelProgress.xpRequiredForNextLevel) XP to next level")
 
             // Player Balances Bar
             HStack(spacing: 16) {
@@ -172,7 +219,7 @@ public struct ContentView: View {
                             .fontWeight(.medium)
                             .foregroundStyle(.blue)
                     } else {
-                        Text("Player XP")
+                        Text("Lifetime XP")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }

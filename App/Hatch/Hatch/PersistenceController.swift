@@ -70,8 +70,9 @@ public final class PersistenceController: ObservableObject {
                     self.container.viewContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
                     self.isLoaded = true
 
-                    // Reconcile any unfinalized tasks that expired while the app was closed
+                    // Reconcile any unfinalized tasks and expired focus sessions
                     try? self.reconcilePendingTasks()
+                    try? self.reconcileActiveFocusSession()
                 }
             }
         }
@@ -250,5 +251,223 @@ public final class PersistenceController: ObservableObject {
         }
 
         try targetContext.save()
+    }
+
+    // MARK: - Focus Session Management
+
+    public enum FocusSessionError: LocalizedError {
+        case activeSessionAlreadyExists
+        case sessionNotEligibleForCompletion
+        case sessionAlreadyFinished
+
+        public var errorDescription: String? {
+            switch self {
+            case .activeSessionAlreadyExists:
+                return "A focus session is already in progress."
+            case .sessionNotEligibleForCompletion:
+                return "The focus session has not reached its target duration yet."
+            case .sessionAlreadyFinished:
+                return "This focus session is already completed or cancelled."
+            }
+        }
+    }
+
+    /// Fetches the currently active focus session (running or paused), if one exists.
+    public func getActiveFocusSession(in context: NSManagedObjectContext? = nil) throws -> FocusSessionEntity? {
+        let targetContext = context ?? viewContext
+        let request: NSFetchRequest<FocusSessionEntity> = FocusSessionEntity.fetchRequest()
+        request.predicate = NSPredicate(format: "isCompleted == NO AND isCancelled == NO")
+        request.fetchLimit = 1
+        return try targetContext.fetch(request).first
+    }
+
+    /// Starts a new focus session. Throws `FocusSessionError.activeSessionAlreadyExists` if another session is active.
+    @MainActor
+    @discardableResult
+    public func startFocusSession(
+        durationMinutes: Int,
+        linkedTaskID: UUID? = nil,
+        now: Date = Date(),
+        context: NSManagedObjectContext? = nil
+    ) throws -> FocusSessionEntity {
+        let targetContext = context ?? viewContext
+        if let _ = try getActiveFocusSession(in: targetContext) {
+            throw FocusSessionError.activeSessionAlreadyExists
+        }
+
+        let reward = RewardCalculator.reward(forFocusDurationMinutes: durationMinutes)
+
+        let session = FocusSessionEntity(context: targetContext)
+        session.id = UUID()
+        session.startDate = now
+        session.targetDurationMinutes = Int32(durationMinutes)
+        session.pausedDuration = 0.0
+        session.isPaused = false
+        session.pauseStartDate = nil
+        session.isCompleted = false
+        session.isCancelled = false
+        session.snapshotGold = Int32(reward.gold)
+        session.snapshotXP = Int32(reward.xp)
+        session.linkedTaskID = linkedTaskID
+
+        do {
+            try targetContext.save()
+            return session
+        } catch {
+            targetContext.refresh(session, mergeChanges: false)
+            throw error
+        }
+    }
+
+    /// Pauses an active focus session.
+    @MainActor
+    public func pauseFocusSession(
+        _ session: FocusSessionEntity,
+        now: Date = Date(),
+        context: NSManagedObjectContext? = nil
+    ) throws {
+        guard !session.isCompleted, !session.isCancelled, !session.isPaused else { return }
+        let targetContext = context ?? session.managedObjectContext ?? viewContext
+
+        session.isPaused = true
+        session.pauseStartDate = now
+
+        do {
+            try targetContext.save()
+        } catch {
+            targetContext.refresh(session, mergeChanges: false)
+            throw error
+        }
+    }
+
+    /// Resumes a paused focus session.
+    @MainActor
+    public func resumeFocusSession(
+        _ session: FocusSessionEntity,
+        now: Date = Date(),
+        context: NSManagedObjectContext? = nil
+    ) throws {
+        guard !session.isCompleted, !session.isCancelled, session.isPaused else { return }
+        let targetContext = context ?? session.managedObjectContext ?? viewContext
+
+        if let pauseStart = session.pauseStartDate, now >= pauseStart {
+            session.pausedDuration += now.timeIntervalSince(pauseStart)
+        }
+        session.isPaused = false
+        session.pauseStartDate = nil
+
+        do {
+            try targetContext.save()
+        } catch {
+            targetContext.refresh(session, mergeChanges: false)
+            throw error
+        }
+    }
+
+    /// Cancels an active focus session. Awards zero rewards.
+    @MainActor
+    public func cancelFocusSession(
+        _ session: FocusSessionEntity,
+        now: Date = Date(),
+        context: NSManagedObjectContext? = nil
+    ) throws {
+        guard !session.isCompleted, !session.isCancelled else { return }
+        let targetContext = context ?? session.managedObjectContext ?? viewContext
+
+        session.isCancelled = true
+        session.isPaused = false
+        session.pauseStartDate = nil
+
+        do {
+            try targetContext.save()
+        } catch {
+            targetContext.refresh(session, mergeChanges: false)
+            throw error
+        }
+    }
+
+    /// Completes an eligible focus session, awarding snapshot gold and XP atomically.
+    @MainActor
+    public func completeFocusSession(
+        _ session: FocusSessionEntity,
+        now: Date = Date(),
+        context: NSManagedObjectContext? = nil
+    ) throws {
+        guard !session.isCompleted, !session.isCancelled else {
+            throw FocusSessionError.sessionAlreadyFinished
+        }
+        guard let startDate = session.startDate else {
+            throw FocusSessionError.sessionAlreadyFinished
+        }
+
+        let targetDuration = TimeInterval(session.targetDurationMinutes) * 60.0
+        let elapsed = FocusSessionTiming.elapsedSeconds(
+            startDate: startDate,
+            pausedDuration: session.pausedDuration,
+            isPaused: session.isPaused,
+            pauseStartDate: session.pauseStartDate,
+            now: now
+        )
+
+        guard FocusSessionTiming.isEligibleForCompletion(
+            targetDurationSeconds: targetDuration,
+            elapsedSeconds: elapsed
+        ) else {
+            throw FocusSessionError.sessionNotEligibleForCompletion
+        }
+
+        let targetContext = context ?? session.managedObjectContext ?? viewContext
+        let player = try getOrCreatePlayer(in: targetContext)
+
+        if session.isPaused, let pauseStart = session.pauseStartDate, now >= pauseStart {
+            session.pausedDuration += now.timeIntervalSince(pauseStart)
+        }
+
+        session.isCompleted = true
+        session.completedAt = now
+        session.isPaused = false
+        session.pauseStartDate = nil
+
+        player.finalizedGold += Int64(session.snapshotGold)
+        player.finalizedXP += Int64(session.snapshotXP)
+
+        do {
+            try targetContext.save()
+        } catch {
+            targetContext.refresh(session, mergeChanges: false)
+            targetContext.refresh(player, mergeChanges: false)
+            throw error
+        }
+    }
+
+    /// Reconciles the active focus session on launch or returning to the foreground.
+    /// If an active unpaused session has reached its target duration, finalizes it automatically.
+    @MainActor
+    public func reconcileActiveFocusSession(
+        asOf now: Date = Date(),
+        context: NSManagedObjectContext? = nil
+    ) throws {
+        let targetContext = context ?? viewContext
+        guard let session = try getActiveFocusSession(in: targetContext) else { return }
+
+        // If paused, elapsed time is frozen, so it cannot naturally complete while paused
+        guard !session.isPaused else { return }
+        guard let startDate = session.startDate else { return }
+
+        let targetDuration = TimeInterval(session.targetDurationMinutes) * 60.0
+        let elapsed = FocusSessionTiming.elapsedSeconds(
+            startDate: startDate,
+            pausedDuration: session.pausedDuration,
+            isPaused: false,
+            pauseStartDate: nil,
+            now: now
+        )
+
+        if FocusSessionTiming.isEligibleForCompletion(
+            targetDurationSeconds: targetDuration,
+            elapsedSeconds: elapsed
+        ) {
+            try completeFocusSession(session, now: now, context: targetContext)
+        }
     }
 }

@@ -43,4 +43,17 @@ public enum RewardCalculator {
 
         return isImportant ? important : normal
     }
+
+    /// Calculates the snapshot reward for completing a focus session of the given duration in minutes.
+    ///
+    /// Per PROJECT_SPEC.md § 5.4:
+    /// Reward per session = floor(durationMinutes × goldPerMinute) gold
+    ///                    + floor(durationMinutes × xpPerMinute) XP
+    /// - Parameter durationMinutes: Total planned session duration in minutes.
+    /// - Returns: The exact snapshot `TaskReward`.
+    public static func reward(forFocusDurationMinutes durationMinutes: Int) -> TaskReward {
+        let gold = max(0, durationMinutes * GameBalance.Focus.goldPerMinute)
+        let xp = max(0, durationMinutes * GameBalance.Focus.xpPerMinute)
+        return TaskReward(gold: gold, xp: xp)
+    }
 }

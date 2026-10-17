@@ -439,6 +439,305 @@ final class PersistenceIntegrationTests: XCTestCase {
         XCTAssertEqual(retriedDiskPlayer.pendingGold, 10)
         XCTAssertEqual(retriedDiskPlayer.pendingXP, 20)
     }
+
+    // MARK: - Milestone 3: Focus Sessions & Progression Tests
+
+    func testExistingV2StoreMigratesToV3AndPreservesRecords() throws {
+        guard let momdURL = findMomdURL() else {
+            XCTFail("Could not locate HatchModel.momd bundle")
+            return
+        }
+
+        let v2URL = momdURL.appendingPathComponent("HatchModelV2.mom")
+        guard let v2Model = NSManagedObjectModel(contentsOf: v2URL) else {
+            XCTFail("Could not load V2 model")
+            return
+        }
+
+        let originalTaskId = UUID()
+        let t0 = Date(timeIntervalSince1970: 1776345600)
+
+        // Step 1: Populate SQLite store using V2 model
+        do {
+            let v2Container = try makeContainer(at: storeURL, model: v2Model)
+            let v2Context = v2Container.viewContext
+
+            let task = NSEntityDescription.insertNewObject(forEntityName: "TaskEntity", into: v2Context)
+            task.setValue(originalTaskId, forKey: "id")
+            task.setValue("V2 Task to Migrate", forKey: "title")
+            task.setValue(t0, forKey: "createdAt")
+            task.setValue(true, forKey: "isImportant")
+            task.setValue(true, forKey: "isCompleted")
+            task.setValue(false, forKey: "isFinalized")
+            task.setValue(t0, forKey: "completedAt")
+            task.setValue(t0.addingTimeInterval(5.0), forKey: "undoDeadline")
+            task.setValue(Int32(15), forKey: "awardedGold")
+            task.setValue(Int32(30), forKey: "awardedXP")
+
+            let player = NSEntityDescription.insertNewObject(forEntityName: "PlayerEntity", into: v2Context)
+            player.setValue(UUID(), forKey: "id")
+            player.setValue(Int64(50), forKey: "finalizedGold")
+            player.setValue(Int64(100), forKey: "finalizedXP")
+            player.setValue(Int64(15), forKey: "pendingGold")
+            player.setValue(Int64(30), forKey: "pendingXP")
+
+            try v2Context.save()
+        }
+
+        // Step 2: Open with current V3 model and verify lightweight migration
+        do {
+            let v3Container = try makeContainer(at: storeURL)
+            let v3Context = v3Container.viewContext
+
+            let tasks = try v3Context.fetch(TaskEntity.fetchRequest())
+            XCTAssertEqual(tasks.count, 1)
+            let task = tasks.first!
+            XCTAssertEqual(task.id, originalTaskId)
+            XCTAssertEqual(task.title, "V2 Task to Migrate")
+            XCTAssertTrue(task.isImportant)
+            XCTAssertTrue(task.isCompleted)
+            XCTAssertFalse(task.isFinalized)
+            XCTAssertEqual(task.awardedGold, 15)
+            XCTAssertEqual(task.awardedXP, 30)
+
+            let player = try PersistenceController.shared.getOrCreatePlayer(in: v3Context)
+            XCTAssertEqual(player.finalizedGold, 50)
+            XCTAssertEqual(player.finalizedXP, 100)
+            XCTAssertEqual(player.pendingGold, 15)
+            XCTAssertEqual(player.pendingXP, 30)
+
+            // Verify FocusSessionEntity can be created and persisted in migrated database
+            let session = FocusSessionEntity(context: v3Context)
+            session.id = UUID()
+            session.startDate = t0
+            session.targetDurationMinutes = 25
+            session.snapshotGold = 25
+            session.snapshotXP = 50
+            try v3Context.save()
+
+            let sessions = try v3Context.fetch(FocusSessionEntity.fetchRequest())
+            XCTAssertEqual(sessions.count, 1)
+        }
+    }
+
+    @MainActor
+    func testStartFocusSessionEnforcesSingleActiveSession() throws {
+        let container = try makeContainer(at: storeURL)
+        let context = container.viewContext
+        let controller = PersistenceController.shared
+        _ = try controller.getOrCreatePlayer(in: context)
+
+        let t0 = Date(timeIntervalSince1970: 1776345600)
+        let session = try controller.startFocusSession(durationMinutes: 25, now: t0, context: context)
+        XCTAssertEqual(session.targetDurationMinutes, 25)
+        XCTAssertEqual(session.snapshotGold, 25)
+        XCTAssertEqual(session.snapshotXP, 50)
+
+        // Attempting to start another session while one is running must throw
+        XCTAssertThrowsError(try controller.startFocusSession(durationMinutes: 15, now: t0.addingTimeInterval(60), context: context)) { error in
+            XCTAssertEqual(error as? PersistenceController.FocusSessionError, .activeSessionAlreadyExists)
+        }
+
+        // Even when paused, starting another session must still be prevented
+        try controller.pauseFocusSession(session, now: t0.addingTimeInterval(120), context: context)
+        XCTAssertThrowsError(try controller.startFocusSession(durationMinutes: 50, now: t0.addingTimeInterval(180), context: context)) { error in
+            XCTAssertEqual(error as? PersistenceController.FocusSessionError, .activeSessionAlreadyExists)
+        }
+    }
+
+    @MainActor
+    func testFocusSessionPauseResumeAndRelaunchFreezesElapsedTime() throws {
+        let t0 = Date(timeIntervalSince1970: 1776345600)
+
+        // Session 1: Start at t0, pause at t0 + 300s (5m elapsed)
+        do {
+            let container1 = try makeContainer(at: storeURL)
+            let context1 = container1.viewContext
+            let controller = PersistenceController.shared
+            _ = try controller.getOrCreatePlayer(in: context1)
+
+            let session = try controller.startFocusSession(durationMinutes: 25, now: t0, context: context1)
+            try controller.pauseFocusSession(session, now: t0.addingTimeInterval(300), context: context1)
+            XCTAssertTrue(session.isPaused)
+            XCTAssertEqual(session.pauseStartDate, t0.addingTimeInterval(300))
+        }
+
+        // Session 2: Reopen in new container 10 minutes later (t0 + 900s)
+        do {
+            let container2 = try makeContainer(at: storeURL)
+            let context2 = container2.viewContext
+            let controller = PersistenceController.shared
+
+            guard let session = try controller.getActiveFocusSession(in: context2) else {
+                XCTFail("Active session should survive reopen")
+                return
+            }
+            guard let startDate = session.startDate else {
+                XCTFail("Active session must have startDate")
+                return
+            }
+            XCTAssertTrue(session.isPaused)
+
+            // Elapsed time must remain frozen at 300s despite wall clock advancing to t0 + 900s
+            let elapsedWhilePaused = FocusSessionTiming.elapsedSeconds(
+                startDate: startDate,
+                pausedDuration: session.pausedDuration,
+                isPaused: session.isPaused,
+                pauseStartDate: session.pauseStartDate,
+                now: t0.addingTimeInterval(900)
+            )
+            XCTAssertEqual(elapsedWhilePaused, 300, "Elapsed active time must freeze while paused")
+
+            // Resume at t0 + 900s
+            try controller.resumeFocusSession(session, now: t0.addingTimeInterval(900), context: context2)
+            XCTAssertFalse(session.isPaused)
+            XCTAssertNil(session.pauseStartDate)
+            XCTAssertEqual(session.pausedDuration, 600, "Accumulated pause must equal 600s")
+
+            // Active elapsed at t0 + 1000s should now be 300 + 100 = 400s
+            let elapsedAfterResume = FocusSessionTiming.elapsedSeconds(
+                startDate: startDate,
+                pausedDuration: session.pausedDuration,
+                isPaused: session.isPaused,
+                pauseStartDate: session.pauseStartDate,
+                now: t0.addingTimeInterval(1000)
+            )
+            XCTAssertEqual(elapsedAfterResume, 400)
+        }
+    }
+
+    @MainActor
+    func testFocusSessionCancellationAwardsNothing() throws {
+        let container = try makeContainer(at: storeURL)
+        let context = container.viewContext
+        let controller = PersistenceController.shared
+        let player = try controller.getOrCreatePlayer(in: context)
+
+        let t0 = Date(timeIntervalSince1970: 1776345600)
+        let session = try controller.startFocusSession(durationMinutes: 15, now: t0, context: context)
+        XCTAssertEqual(session.snapshotGold, 15)
+        XCTAssertEqual(session.snapshotXP, 30)
+
+        try controller.cancelFocusSession(session, now: t0.addingTimeInterval(300), context: context)
+        XCTAssertTrue(session.isCancelled)
+        XCTAssertFalse(session.isCompleted)
+
+        // Player balances must remain strictly 0
+        XCTAssertEqual(player.finalizedGold, 0)
+        XCTAssertEqual(player.finalizedXP, 0)
+        XCTAssertEqual(player.pendingGold, 0)
+        XCTAssertEqual(player.pendingXP, 0)
+    }
+
+    @MainActor
+    func testFocusSessionCompletionAwardsRewardsAtomicallyAndRejectsDuplicates() throws {
+        let container = try makeContainer(at: storeURL)
+        let context = container.viewContext
+        let controller = PersistenceController.shared
+        let player = try controller.getOrCreatePlayer(in: context)
+
+        let t0 = Date(timeIntervalSince1970: 1776345600)
+        let session = try controller.startFocusSession(durationMinutes: 25, now: t0, context: context)
+
+        // Attempt early completion before target duration
+        XCTAssertThrowsError(try controller.completeFocusSession(session, now: t0.addingTimeInterval(1400), context: context)) { error in
+            XCTAssertEqual(error as? PersistenceController.FocusSessionError, .sessionNotEligibleForCompletion)
+        }
+        XCTAssertEqual(player.finalizedGold, 0)
+
+        // Complete when target duration is met (t0 + 1500s)
+        try controller.completeFocusSession(session, now: t0.addingTimeInterval(1500), context: context)
+        XCTAssertTrue(session.isCompleted)
+        XCTAssertEqual(session.completedAt, t0.addingTimeInterval(1500))
+
+        XCTAssertEqual(player.finalizedGold, 25, "Finalized gold must be credited directly")
+        XCTAssertEqual(player.finalizedXP, 50, "Finalized XP must be credited directly")
+        XCTAssertEqual(player.pendingGold, 0)
+        XCTAssertEqual(player.pendingXP, 0)
+
+        // Attempt duplicate completion
+        XCTAssertThrowsError(try controller.completeFocusSession(session, now: t0.addingTimeInterval(1600), context: context)) { error in
+            XCTAssertEqual(error as? PersistenceController.FocusSessionError, .sessionAlreadyFinished)
+        }
+        XCTAssertEqual(player.finalizedGold, 25, "Rewards must not be duplicated")
+        XCTAssertEqual(player.finalizedXP, 50)
+    }
+
+    @MainActor
+    func testRelaunchReconciliationNaturallyCompletesFinishedUnpausedSession() throws {
+        let container = try makeContainer(at: storeURL)
+        let context = container.viewContext
+        let controller = PersistenceController.shared
+        let player = try controller.getOrCreatePlayer(in: context)
+
+        let t0 = Date(timeIntervalSince1970: 1776345600)
+        let session = try controller.startFocusSession(durationMinutes: 15, now: t0, context: context)
+
+        // Simulate returning to foreground after 1000s (> 15m / 900s)
+        try controller.reconcileActiveFocusSession(asOf: t0.addingTimeInterval(1000), context: context)
+
+        XCTAssertTrue(session.isCompleted)
+        XCTAssertEqual(player.finalizedGold, 15)
+        XCTAssertEqual(player.finalizedXP, 30)
+    }
+
+    @MainActor
+    func testFocusSessionSaveFailureRollsBackWithoutDiscardingUnrelatedEdits() throws {
+        let container = try makeContainer(at: storeURL)
+        let controller = PersistenceController.shared
+
+        let failingContext = FailingSaveContext(concurrencyType: .mainQueueConcurrencyType)
+        failingContext.persistentStoreCoordinator = container.persistentStoreCoordinator
+        failingContext.shouldFailSave = false
+
+        let player = try controller.getOrCreatePlayer(in: failingContext)
+        let t0 = Date(timeIntervalSince1970: 1776345600)
+
+        // Create baseline entities and save them to disk
+        let unrelatedTask = TaskEntity(context: failingContext)
+        unrelatedTask.id = UUID()
+        unrelatedTask.title = "Unrelated Task Baseline"
+        unrelatedTask.createdAt = t0
+
+        let session = FocusSessionEntity(context: failingContext)
+        session.id = UUID()
+        session.startDate = t0
+        session.targetDurationMinutes = 25
+        session.pausedDuration = 0.0
+        session.isPaused = false
+        session.isCompleted = false
+        session.isCancelled = false
+        session.snapshotGold = 25
+        session.snapshotXP = 50
+        try failingContext.save()
+
+        // Make an unsaved edit to the unrelated task AFTER baseline save
+        unrelatedTask.title = "Unrelated Task Modified"
+        XCTAssertTrue(unrelatedTask.hasChanges)
+
+        failingContext.shouldFailSave = true
+        XCTAssertThrowsError(try controller.completeFocusSession(session, now: t0.addingTimeInterval(1500), context: failingContext)) { error in
+            XCTAssertEqual(error as? FailingSaveContext.SimulatedError, .simulatedDiskFailure)
+        }
+
+        // Verify session and player were rolled back
+        XCTAssertFalse(session.isCompleted)
+        XCTAssertNil(session.completedAt)
+        XCTAssertEqual(player.finalizedGold, 0)
+        XCTAssertEqual(player.finalizedXP, 0)
+
+        // Unrelated edit must NOT be discarded
+        XCTAssertTrue(unrelatedTask.hasChanges, "Unrelated unsaved edits must be preserved during rollback")
+        XCTAssertEqual(unrelatedTask.title, "Unrelated Task Modified")
+
+        // Retry with save enabled
+        failingContext.shouldFailSave = false
+        try controller.completeFocusSession(session, now: t0.addingTimeInterval(1500), context: failingContext)
+
+        XCTAssertTrue(session.isCompleted)
+        XCTAssertEqual(player.finalizedGold, 25)
+        XCTAssertEqual(player.finalizedXP, 50)
+    }
 }
 
 // MARK: - Test Helpers

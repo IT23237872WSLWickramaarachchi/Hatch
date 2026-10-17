@@ -82,13 +82,14 @@ Each milestone has a goal, a list of deliverables, and a "what you will learn" s
 **Goal**: Run focus sessions with a persistent wall-clock timer; award gold and XP on completion; compute and display player level.
 
 ### Deliverables
-- [ ] `FocusSession` entity in Core Data
-- [ ] Focus screen with duration picker and session controls
-- [ ] Timestamp-based timer that survives backgrounding and relaunch
-- [ ] Session completion reward (snapshot at start)
-- [ ] Player level computed from cumulative XP
-- [ ] Level-up animation (respects Reduce Motion)
-- [ ] HatchCore tests for levelling formula and session reward calculation
+- [x] `FocusSession` entity in Core Data
+- [x] Focus screen with duration picker and session controls
+- [x] Timestamp-based timer that survives backgrounding and relaunch
+- [x] Session completion reward (snapshot at start)
+- [x] Player level computed from cumulative XP
+- [x] Level-up animation (respects Reduce Motion)
+- [x] HatchCore tests for levelling formula and session reward calculation
+- [x] Manual simulator acceptance test (✅ Developer-confirmed: all checks passed)
 
 ### What you will learn
 - Why timestamps are more reliable than tick counters for timers.

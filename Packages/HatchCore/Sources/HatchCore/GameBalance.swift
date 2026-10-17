@@ -2,7 +2,7 @@
 //  GameBalance.swift
 //  HatchCore
 //
-//  Created for Hatch Milestone 2.
+//  Created for Hatch Milestone 2, updated for Milestone 3.
 //
 
 import Foundation
@@ -29,5 +29,18 @@ public enum GameBalance {
     public enum Undo {
         /// The duration of the pending completion window in seconds (5 seconds).
         public static let windowDurationSeconds: TimeInterval = 5.0
+    }
+
+    /// Focus session balance configuration.
+    public enum Focus {
+        /// Gold awarded per minute of completed focus session.
+        public static let goldPerMinute: Int = 1
+        /// Player XP awarded per minute of completed focus session.
+        public static let xpPerMinute: Int = 2
+
+        /// Predefined focus session durations in minutes.
+        public static let shortDurationMinutes: Int = 15
+        public static let defaultDurationMinutes: Int = 25
+        public static let longDurationMinutes: Int = 50
     }
 }

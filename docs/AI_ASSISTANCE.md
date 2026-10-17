@@ -266,5 +266,37 @@ Each entry records:
 - *Manual simulator acceptance test*: ✅ Passed (Developer-confirmed all six checks passed).
 - *Git status*: Changes present locally on working tree (`main`); no commits or pushes performed.
 
+---
+
+## Milestone 3 — Focus Sessions and Player Levels
+
+### Session 8 — 2026-10-17
+
+**Session goal**: Implement Milestone 3: Core Data model V3 (`HatchModelV3.xcdatamodel`) preserving V1/V2, focus session controls (15/25/50m, pause, resume, cancel, complete), wall-clock timer persistence across relaunch/backgrounding, snapshot rewards, single-session guard, finalized-XP-based player level and progress bar with Reduce Motion support, save-failure recovery preserving unrelated edits, and integration tests.
+
+**AI contributions**:
+- Created `HatchModelV3.xcdatamodel` preserving `HatchModel.xcdatamodel` (V1) and `HatchModelV2.xcdatamodel` (V2), adding `FocusSessionEntity` with required attributes (`id`, `startDate`, `targetDurationMinutes`, `pausedDuration`, `isPaused`, `pauseStartDate`, `isCompleted`, `isCancelled`, `completedAt`, `snapshotGold`, `snapshotXP`, `linkedTaskID`). Updated `.xccurrentversion` to point to V3.
+- Implemented `GameBalance.Focus` in `GameBalance.swift` (15, 25, 50 minutes; 1 gold/min, 2 XP/min) and `RewardCalculator.reward(forFocusDurationMinutes:)`.
+- Created `PlayerProgression.swift` with pure functions for player levels (`100 + (level - 1) * 50`), cumulative thresholds, and level progress calculations.
+- Created `FocusSessionTiming.swift` with pure functions calculating active elapsed time, frozen pause duration, remaining seconds, and completion eligibility.
+- Added 13 pure Swift unit tests in `PlayerProgressionTests.swift` and `FocusSessionTimingTests.swift` (35 total HatchCore unit tests).
+- Extended `PersistenceController.swift` with focus lifecycle operations: `getActiveFocusSession`, `startFocusSession`, `pauseFocusSession`, `resumeFocusSession`, `cancelFocusSession`, `completeFocusSession`, and `reconcileActiveFocusSession`.
+- Implemented save-failure error recovery via `context.refresh(session, mergeChanges: false)` and `context.refresh(player, mergeChanges: false)`, reverting failed focus mutations without discarding unrelated in-memory edits.
+- Created `FocusView.swift` featuring duration picker, snapshot reward previews, circular progress ring, pause/resume/cancel/claim actions, and `scenePhase` lifecycle reconciliation.
+- Updated `ContentView.swift` to display player level badge and XP progress bar computed strictly from `finalizedXP`, respecting `accessibilityReduceMotion`, with navigation link to `FocusView` and foreground reconciliation.
+- Added 7 integration tests to `PersistenceIntegrationTests.swift` covering V2->V3 migration, single-session guard, pause/resume freeze across relaunch, cancellation, atomic completion and duplicate prevention, natural completion reconciliation, and save-failure recovery preserving unrelated edits.
+
+**Developer contributions**:
+- Outlined Milestone 3 requirements, token-efficient workflow rules, and strict no-Git-mutations policy.
+- Conducted manual simulator acceptance test and confirmed all Milestone 3 checks passed.
+
+**Verification status**:
+- *swift test (Mac)*: ✅ Passed (35 tests, 0 failures).
+- *Xcode test (Simulator)*: ✅ Passed (15 persistence integration tests passed on iPhone 17 Simulator).
+- *Core Data lightweight migration*: ✅ Passed (`testExistingV2StoreMigratesToV3AndPreservesRecords`).
+- *Manual simulator acceptance test*: ✅ Passed (Developer-confirmed all checks passed).
+- *Git status*: Staged and committed on `main`.
+
+
 
 
